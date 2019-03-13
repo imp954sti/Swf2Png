@@ -1,0 +1,125 @@
+<?xml version="1.0"?>
+<s:WindowedApplication xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:s="library://ns.adobe.com/flex/spark"
+                       nativeDragEnter="onDragEnter(event)" nativeDragDrop="onDragDrop(event)">
+    <fx:Style source="stylesheet.css"/>
+    <fx:Script><![CDATA[
+        import mx.controls.Alert;
+        import mx.graphics.codec.PNGEncoder;
+
+        private function onClick_btnLoad():void {
+            var file:File = new File();
+            file.addEventListener(Event.SELECT, function ():void {
+                file.removeEventListener(Event.COMPLETE, arguments.callee);
+                // File.loadだとCOMPLETEが発火しないことがあるのでLoaderを使ってロードする
+                load(file.url);
+            });
+
+            var filter:FileFilter = new FileFilter("swf file(*.swf)", "*.swf");
+            file.browseForOpen("select swf", [filter]);
+        }
+
+        private function load(url:String):void {
+            while (imgLoader.numChildren > 0) {
+                imgLoader.removeChildAt(0);
+            }
+
+            var loader:Loader = new Loader();
+            loader.contentLoaderInfo.addEventListener(Event.COMPLETE, function (e:Event):void {
+                var mc:MovieClip = loader.content as MovieClip;
+                imgLoader.addChild(mc);
+                settings.enabled = true;
+                updatePreviewAreaSize();
+            });
+            loader.load(new URLRequest(url));
+        }
+
+        private function onClick_btnSave():void {
+            var mc:MovieClip = imgLoader.getChildAt(0) as MovieClip;
+            var scale:Number = slider.value;
+            // PNGへ変換
+            var png:ByteArray = ConvertToPng(mc, scale);
+            // PNGとJSON保存
+            var file:File = new File(mc.loaderInfo.url);
+            var fileName:String = file.name.replace(file.type, ".png");
+            var pngFile:File = file.parent.resolvePath(fileName);
+            Save(pngFile.url, png);
+        }
+
+        private function Save(url:String, bytes:ByteArray):void {
+            var fs:FileStream = new FileStream();
+            fs.open(new File(url), FileMode.WRITE);
+            fs.writeBytes(bytes, 0, bytes.length);
+            fs.close();
+            Alert.show(url + "\nに保存しました", "保存完了");
+
+        }
+
+        private function ConvertToPng(drawTarget:DisplayObject, scale:Number):ByteArray {
+            var rect:Rectangle = drawTarget.getRect(drawTarget);
+            var bitmapData:BitmapData = new BitmapData(rect.width * scale, rect.height * scale, true, 0x00000000);
+            var matrix:Matrix = new Matrix();
+            matrix.tx -= rect.x;
+            matrix.ty -= rect.y;
+            matrix.scale(scale, scale);
+            bitmapData.draw(drawTarget, matrix);
+
+            var encoder:PNGEncoder = new PNGEncoder();
+            var bytes:ByteArray = encoder.encode(bitmapData);
+            return bytes;
+        }
+
+
+        private function onChangeScale():void {
+            imgLoader.scaleX = slider.value;
+            imgLoader.scaleY = slider.value;
+            updatePreviewAreaSize();
+        }
+
+        private function onChangeOffset():void {
+            var mc:MovieClip = imgLoader.getChildAt(0) as MovieClip;
+            var rect:Rectangle = mc.getRect(mc);
+            var scale:Number = chkOffsetZero.selected ? -1 : 1;
+            mc.x += rect.x * scale;
+            mc.y += rect.y * scale;
+        }
+
+        private function onDragEnter(e:Event):void {
+            NativeDragManager.acceptDragDrop(this);
+        }
+
+        private function onDragDrop(e:NativeDragEvent):void {
+            var clipboard:Clipboard = e.clipboard;
+            var dropFiles:Array = clipboard.getData(ClipboardFormats.FILE_LIST_FORMAT) as Array;
+            for each (var file:File in dropFiles) {
+                if (file.extension == "swf") {
+                    load(file.url);
+                }
+            }
+        }
+
+        private function updatePreviewAreaSize():void {
+            var rect:Rectangle = imgLoader.getRect(this);
+            preview.width = rect.width;
+            preview.height = rect.height;
+        }
+        ]]></fx:Script>
+    <s:HGroup id="fileGroup">
+        <s:Button id="btnLoad" click="onClick_btnLoad()" label="Load"/>
+        <s:Button id="btnSave" click="onClick_btnSave()" label="Save"/>
+        <s:Label horizontalCenter="0" verticalCenter="0" text="ファイルをドロップでもロードできます"/>
+    </s:HGroup>
+
+    <s:BorderContainer id="preview" borderColor="0xb5b5b5" borderWeight="1" backgroundAlpha="0"
+                       verticalCenter="0" horizontalCenter="0">
+        <s:SWFLoader id="imgLoader"/>
+    </s:BorderContainer>
+
+    <s:VGroup id="settings" left="0" bottom="0">
+        <s:CheckBox id="chkOffsetZero" change="onChangeOffset()" label="(0,0)を基準に描画"/>
+        <s:HGroup>
+            <s:Label text="Scale:"/>
+            <s:HSlider id="slider" minimum="1" maximum="10" change="onChangeScale()"/>
+            <s:Label text=" x{slider.value}"/>
+        </s:HGroup>
+    </s:VGroup>
+</s:WindowedApplication>

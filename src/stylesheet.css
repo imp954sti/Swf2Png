@@ -1,0 +1,18 @@
+@namespace s "library://ns.adobe.com/flex/spark";
+@namespace mx "library://ns.adobe.com/flex/mx";
+
+s|WindowedApplication {
+    backgroundColor: #2b2b2b;
+    chromeColor: #4c5052;
+    symbolColor: #b5b5b5;
+    color: #b5b5b5;
+}
+
+mx|Alert {
+    backgroundColor: #2b2b2b;
+    chromeColor: #4c5052;
+    symbolColor: #b5b5b5;
+    color: #b5b5b5;
+    modalTransparencyColor: #000000;
+    /*accentColor: #365880;*/
+}
